@@ -3,7 +3,6 @@ package io.sandbox.rails.mixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.block.AbstractRailBlock;
@@ -14,17 +13,53 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.vehicle.AbstractMinecartEntity;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 @Mixin(AbstractMinecartEntity.class)
 public abstract class AbstractMinecartEntityMixin extends Entity {
+  private static double maxSafeVel = 1.0D;
   private World myWorld;
   private BlockPos myPos;
+  private BlockPos lastPos;
   private BlockState rail;
   private BlockState underRail;
   private BlockState left;
   private BlockState right;
   private int specials = 0;
+
+  // // This code is just for tracking BPS and velocity. It's currently written to only track along the east/west axis.
+  // private int ticks = 0;
+  // private BlockPos startPos;
+  // @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
+  // private void tick(CallbackInfo cbi) {
+  //   if (myWorld == null || myWorld.isClient()) { return; }
+  //   ticks++;
+  //   if (ticks == 1) {
+  //     startPos = this.getBlockPos();
+  //   } else if (ticks == 20) {
+  //     ticks = 0;
+  //     if (myPos != null) {
+  //       Vec3d vel =  this.getVelocity();
+  //       if (Math.abs(vel.x) > Math.abs(vel.z)) {
+  //         System.out.println(
+  //           "SP: " + specials + 
+  //           " | POS: " + myPos.toShortString() +
+  //           " | BPS: " + (myPos.getX() - startPos.getX()) + 
+  //           " | VEL: " + vel
+  //         );
+  //       } else {
+  //         System.out.println(
+  //           "SP: " + specials + 
+  //           " | POS: " + myPos.toShortString() +
+  //           " | BPS: " + (myPos.getZ() - startPos.getZ()) + 
+  //           " | VEL: " + vel
+  //         );
+  //       }
+  //       startPos = myPos;
+  //     }
+  //   }
+  // }
 
   public AbstractMinecartEntityMixin(EntityType<?> entityType, World world) {
     super(entityType, world);
@@ -33,27 +68,27 @@ public abstract class AbstractMinecartEntityMixin extends Entity {
 
   @Inject(method = "getMaxOffRailSpeed", at = @At("HEAD"), cancellable = true)
 	private void getMaxOffRailSpeed(CallbackInfoReturnable<Double> cbir) {
-    if (myWorld == null || myWorld.isClient()) { return; }
-
-    if (specials == 16) {
-      System.out.println("ALLOWING FAST");
-      cbir.setReturnValue((this.isTouchingWater() ? 4.0D : 30.0D) / 20.0D);
-    }
-  }
-
-  @Inject(method = "moveOnRail", at = @At("HEAD"), cancellable = true)
-  private void moveOnRail(BlockPos pos, BlockState state, CallbackInfo cbi) {
     // Ensure we've got a constant world reference.
-    if (myWorld == null) { myWorld = this.getWorld(); }
+    if (myWorld == null) {
+      myWorld = this.getWorld();
+    }
 
     // This is a server side only mod.
     if (myWorld.isClient()) { return; }
 
-    System.out.println("Velocity: " + this.getVelocity().x);
+    updateReturnVal(cbir, false);
 
-    // Get the base block position and what should be the rail block we're on.
-    myPos = pos;
-    rail = state;
+    // Update our current block position.
+    myPos = this.getBlockPos();
+
+    // If the current position is the same as the LAST position then we already did this and we can leave.
+    if (myPos.equals(lastPos)) { return; }
+
+    // Update last position to current.
+    lastPos = myPos;
+
+    // Get the block state for the rail we're assumed to be on.
+    rail = myWorld.getBlockState(myPos);
 
     // If we're not on a rail then use the normal logic.
     if (!(rail.getBlock() instanceof AbstractRailBlock)) {
@@ -66,14 +101,27 @@ public abstract class AbstractMinecartEntityMixin extends Entity {
       // If we're on a powered rail that is on soulsand let's slow us down.
       underRail = myWorld.getBlockState(myPos.down());
       if (underRail.isOf(Blocks.SOUL_SAND) || underRail.isOf(Blocks.SOUL_SOIL)) {
-        addSpecialVelocity(true);
+        specials = 0;
+
+        // Force the current velocity down to base.
+        Vec3d vel = this.getVelocity();
+        if (vel.x > maxSafeVel) {
+          this.setVelocity(maxSafeVel, vel.y, vel.z);
+        }
+        if (vel.x < -maxSafeVel) {
+          this.setVelocity(-maxSafeVel, vel.y, vel.z);
+        }
+        if (vel.z > maxSafeVel) {
+          this.setVelocity(vel.x, vel.y, maxSafeVel);
+        }
+        if (vel.z < -maxSafeVel) {
+          this.setVelocity(vel.x, vel.y, -maxSafeVel);
+        }
       }
       return;
-    } else if (specials >= 16) {
-      specials = 15; // Just make sure we don't end up incrementing past 16.
     }
 
-    // If the powered rail we're on is NOT powered then use the normal logic.
+    // If the powered rail we're on is NOT powered then reset specials to 0.
     if (!(Boolean)rail.get(PoweredRailBlock.POWERED)) {
       specials = 0;
       return;
@@ -88,8 +136,10 @@ public abstract class AbstractMinecartEntityMixin extends Entity {
       return;
     }
 
-    // Finally we can assume we're on a powered rail flanked by lightning rods so let's use the full speed increase during this time.
-    addSpecialVelocity(false);
+    // Finally we can assume we're on a powered rail flanked by lightning rods.
+    // We want to trigger specials to increase.
+    specials++;
+    updateReturnVal(cbir, true);
   }
 
   private void setLeftAndRightBlocks() {
@@ -117,39 +167,38 @@ public abstract class AbstractMinecartEntityMixin extends Entity {
     }
   }
 
-  private void addSpecialVelocity(boolean slow) {
-    // double g = slow ? 1.0D : 4.0D;
-    switch (this.getMovementDirection().getName()) {
-      case "north":
-        ++specials;
-        if (specials == 16) {
-          System.out.println("RAILGUNNNNNN!@!!!!!!");
-          // this.setVelocity(0.0D, 0.0D, -g);
-        }
-        break;
-      case "south":
-        ++specials;
-        if (specials == 16) {
-          System.out.println("RAILGUNNNNNN!@!!!!!!");
-          // this.setVelocity(0.0D, 0.0D, g);
-        }
-        break;
-      case "west":
-        ++specials;
-        if (specials == 16) {
-          System.out.println("RAILGUNNNNNN!@!!!!!!");
-          // this.setVelocity(-g, 0.0D, 0.0D);
-        }
-        break;
-      case "east":
-        ++specials;
-        if (specials == 16) {
-          System.out.println("RAILGUNNNNNN!@!!!!!!");
-          // this.setVelocity(g, 0.0D, 0.0D);
-        }
-        break;
-      default:
-        // Do nothing
+  private void updateReturnVal(CallbackInfoReturnable<Double> cbir, boolean boost) {
+    if (specials > 0 && !this.isTouchingWater()) {
+      switch (specials) {
+        case 1:
+          cbir.setReturnValue(0.5D);
+          break;
+        case 2:
+          cbir.setReturnValue(0.6D);
+          break;
+        case 3:
+          cbir.setReturnValue(0.7D);
+          break;
+        case 4:
+          cbir.setReturnValue(0.8D);
+          break;
+        case 5:
+          cbir.setReturnValue(0.9D);
+          break;
+        case 6:
+          cbir.setReturnValue(0.9D);
+          break;
+        case 7:
+          cbir.setReturnValue(1.0D);
+          break;
+        default:
+          // Set to the maximum of 1.5 which forces velocity of 1.944 (max allowed by game) without deceleration.
+          cbir.setReturnValue(1.5D);
+          if (boost) {
+            Vec3d vel = this.getVelocity();
+            this.setVelocity(vel.add(vel.x, 0, vel.z)); // just double the current velocity
+          }
+      }
     }
   }
 }
