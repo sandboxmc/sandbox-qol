@@ -3,10 +3,10 @@
   "id": "rails",
   "version": "${version}",
 
-  "name": "Speed Rails",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "name": "Sandbox Speed Rails",
+  "description": "Enables railgun-like mechanics for minecarts.",
   "authors": [
-    "Me!"
+    "Tyler Crocker"
   ],
   "contact": {
     "homepage": "https://fabricmc.net/",
