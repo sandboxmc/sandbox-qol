@@ -66,8 +66,8 @@ public abstract class AbstractMinecartEntityMixin extends Entity {
     throw new IllegalStateException("AbstractMinecartEntityMixin's dummy constructor called!");
   }
 
-  @Inject(method = "getMaxOffRailSpeed", at = @At("HEAD"), cancellable = true)
-	private void getMaxOffRailSpeed(CallbackInfoReturnable<Double> cbir) {
+  @Inject(method = "getMaxSpeed", at = @At("HEAD"), cancellable = true)
+	private void getMaxSpeed(CallbackInfoReturnable<Double> cbir) {
     // Ensure we've got a constant world reference.
     if (myWorld == null) {
       myWorld = this.getWorld();
