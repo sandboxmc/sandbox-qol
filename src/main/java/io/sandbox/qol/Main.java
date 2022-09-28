@@ -23,8 +23,6 @@ public class Main implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		LOGGER.info("Initializing...");
-
 		LOGGER.info("The following improvements were enabled:");
 		if (getRailsConfig().enabled) {
 			LOGGER.info("Speed Rails");
