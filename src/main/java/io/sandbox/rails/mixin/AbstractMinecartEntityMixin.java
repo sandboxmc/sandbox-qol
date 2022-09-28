@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import io.sandbox.lib.BlockHelper;
 import io.sandbox.lib.SandboxLogger;
 import io.sandbox.qol.Main;
-import io.sandbox.qol.config_types.RailsConfig;
+import io.sandbox.qol.configTypes.RailsConfig;
 import net.minecraft.block.AbstractRailBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;

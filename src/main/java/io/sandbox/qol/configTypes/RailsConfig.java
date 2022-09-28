@@ -1,4 +1,4 @@
-package io.sandbox.qol.config_types;
+package io.sandbox.qol.configTypes;
 
 public class RailsConfig {
   // Available settings
