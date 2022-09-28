@@ -5,30 +5,40 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import io.sandbox.lib.BlockHelper;
+import io.sandbox.lib.SandboxLogger;
+import io.sandbox.qol.Main;
+import io.sandbox.qol.config_types.RailsConfig;
 import net.minecraft.block.AbstractRailBlock;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.PoweredRailBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.vehicle.AbstractMinecartEntity;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.registry.Registry;
 import net.minecraft.world.World;
 
 @Mixin(AbstractMinecartEntity.class)
 public abstract class AbstractMinecartEntityMixin extends Entity {
-  private static double maxSafeVel = 1.0D;
+  private static final RailsConfig CONFIG = Main.getRailsConfig();
+  private static final SandboxLogger LOGGER = new SandboxLogger("SandboxSpeedRails");
+  private boolean configLoaded = false;
   private World myWorld;
   private BlockPos myPos;
   private BlockPos lastPos;
-  private BlockState rail;
-  private BlockState underRail;
-  private BlockState left;
-  private BlockState right;
   private int specials = 0;
+  private double[] specialVelocities;
+  private Block leftBlockType;
+  private Block rightBlockType;
+  private Block bottomBlockType;
 
   // // This code is just for tracking BPS and velocity. It's currently written to only track along the east/west axis.
+  // // This is strictly for testing purposes and should never be used in a real world environment.
   // private int ticks = 0;
   // private BlockPos startPos;
   // @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
@@ -68,9 +78,21 @@ public abstract class AbstractMinecartEntityMixin extends Entity {
 
   @Inject(method = "getMaxSpeed", at = @At("HEAD"), cancellable = true)
 	private void getMaxSpeed(CallbackInfoReturnable<Double> cbir) {
-    // Ensure we've got a constant world reference.
-    if (myWorld == null) {
+    if (!CONFIG.enabled) { return; }
+    
+    if (!configLoaded) {
+      LOGGER.info("Running first time setup...");
       myWorld = this.getWorld();
+      leftBlockType = BlockHelper.getBlockFromId(CONFIG.leftBlock);
+      rightBlockType = BlockHelper.getBlockFromId(CONFIG.rightBlock);
+      bottomBlockType = BlockHelper.getBlockFromId(CONFIG.bottomBlock);
+      specialVelocities = new double[CONFIG.requiredLength - 1]; // last velocity does something special
+      double mod = (0.5D / specialVelocities.length);
+      for (int i = 0; i < specialVelocities.length; i++) {
+        specialVelocities[i] = 0.5D + (mod * i);
+      }
+      configLoaded = true;
+      LOGGER.info("Finished!");
     }
 
     // This is a server side only mod.
@@ -88,61 +110,40 @@ public abstract class AbstractMinecartEntityMixin extends Entity {
     lastPos = myPos;
 
     // Get the block state for the rail we're assumed to be on.
-    rail = myWorld.getBlockState(myPos);
+    BlockState rail = myWorld.getBlockState(myPos);
 
-    // If we're not on a rail then use the normal logic.
-    if (!(rail.getBlock() instanceof AbstractRailBlock)) {
+    // If we're touching water or we're not on a rail then reset specials to 0 and use the default logic.
+    if (this.isTouchingWater() || !(rail.getBlock() instanceof AbstractRailBlock)) {
       specials = 0;
       return;
     }
 
-    // If we're not on a powered rail then use the normal logic.
-    if (!rail.isOf(Blocks.POWERED_RAIL)) {
-      // If we're on a powered rail that is on soulsand let's slow us down.
-      underRail = myWorld.getBlockState(myPos.down());
-      if (underRail.isOf(Blocks.SOUL_SAND) || underRail.isOf(Blocks.SOUL_SOIL)) {
-        specials = 0;
+    // If we are then on any rail other than a powered rail let's continue with whatever specials we had and the default logic.
+    if (!rail.isOf(Blocks.POWERED_RAIL)) { return; }
 
-        // Force the current velocity down to base.
-        Vec3d vel = this.getVelocity();
-        if (vel.x > maxSafeVel) {
-          this.setVelocity(maxSafeVel, vel.y, vel.z);
-        }
-        if (vel.x < -maxSafeVel) {
-          this.setVelocity(-maxSafeVel, vel.y, vel.z);
-        }
-        if (vel.z > maxSafeVel) {
-          this.setVelocity(vel.x, vel.y, maxSafeVel);
-        }
-        if (vel.z < -maxSafeVel) {
-          this.setVelocity(vel.x, vel.y, -maxSafeVel);
-        }
-      }
-      return;
-    }
-
-    // If the powered rail we're on is NOT powered then reset specials to 0.
-    if (!(Boolean)rail.get(PoweredRailBlock.POWERED)) {
+    // If the powered rails were not powered or are not surrounded by the appriopriate blocks then reset specials to 0 and use the default logic.
+    // This means that a regular powered rail or an unpowered powered rail will bring the velocity back to normal.
+    // This is useful for corners and such.
+    if (!(Boolean)rail.get(PoweredRailBlock.POWERED) || hasInvalidBlocks()) {
       specials = 0;
       return;
     }
 
-    // Set up our left/right blocks based on our direction.
-    setLeftAndRightBlocks();
-
-    // If we're on a powered rail but it is NOT flanked by lightning rods then use the normal logic.
-    if (!left.isOf(Blocks.LIGHTNING_ROD) || !right.isOf(Blocks.LIGHTNING_ROD)) {
-      specials = 0;
-      return;
-    }
-
-    // Finally we can assume we're on a powered rail flanked by lightning rods.
+    // Finally we can assume we're on a powered rail with the proper positional blocks.
     // We want to trigger specials to increase.
     specials++;
     updateReturnVal(cbir, true);
   }
 
-  private void setLeftAndRightBlocks() {
+  private boolean hasInvalidBlocks() {
+    // This is always the same.
+    if (bottomBlockType != null && !myWorld.getBlockState(myPos.down()).isOf(bottomBlockType)) {
+      return true;
+    }
+
+    // Left and Right depend on cardinal direction.
+    BlockState left;
+    BlockState right;
     switch (this.getMovementDirection().getName()) {
       case "north":
         left = myWorld.getBlockState(myPos.west());
@@ -161,44 +162,31 @@ public abstract class AbstractMinecartEntityMixin extends Entity {
         right = myWorld.getBlockState(myPos.north());
         break;
       default:
-        // I have no idea what this would really be, but let's set them to null and leave.
-        left = null;
-        right = null;
+        // Not sure how this would exactly happen but let's just verify if we had a setting or not and return based on that.
+        return leftBlockType != null || rightBlockType != null;
     }
+
+    if (leftBlockType != null && !left.isOf(leftBlockType)) {
+      return true;
+    }
+
+    if (rightBlockType != null && !right.isOf(rightBlockType)) {
+      return true;
+    }
+
+    return false;
   }
 
   private void updateReturnVal(CallbackInfoReturnable<Double> cbir, boolean boost) {
-    if (specials > 0 && !this.isTouchingWater()) {
-      switch (specials) {
-        case 1:
-          cbir.setReturnValue(0.5D);
-          break;
-        case 2:
-          cbir.setReturnValue(0.6D);
-          break;
-        case 3:
-          cbir.setReturnValue(0.7D);
-          break;
-        case 4:
-          cbir.setReturnValue(0.8D);
-          break;
-        case 5:
-          cbir.setReturnValue(0.9D);
-          break;
-        case 6:
-          cbir.setReturnValue(0.9D);
-          break;
-        case 7:
-          cbir.setReturnValue(1.0D);
-          break;
-        default:
-          // Set to the maximum of 1.5 which forces velocity of 1.944 (max allowed by game) without deceleration.
-          cbir.setReturnValue(1.5D);
-          if (boost) {
-            Vec3d vel = this.getVelocity();
-            this.setVelocity(vel.add(vel.x, 0, vel.z)); // just double the current velocity
-          }
+    if (specials >= CONFIG.requiredLength) {
+      // Set to the maximum of 1.5 which forces velocity of 1.944 (max allowed by game) without deceleration.
+      cbir.setReturnValue(1.5D);
+      if (boost) {
+        Vec3d vel = this.getVelocity();
+        this.setVelocity(vel.add(vel.x, 0, vel.z)); // just double the current velocity
       }
+    } else if (specials > 0) {
+      cbir.setReturnValue(specialVelocities[specials - 1]);
     }
   }
 }
