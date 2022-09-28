@@ -1,25 +1,26 @@
 {
   "schemaVersion": 1,
-  "id": "rails",
+  "id": "sandbox-qol",
   "version": "${version}",
 
-  "name": "Sandbox Speed Rails",
-  "description": "Enables railgun-like mechanics for minecarts.",
+  "name": "Sandbox Quality of Life",
+  "description": "Collection of mixins to vanilla MC that we feel make the game better. The goal is mainly to make things that don't have much purpose have purpose.",
   "authors": [
-    "Tyler Crocker"
+    "Tyler Crocker",
+    "Brent Crocker"
   ],
   "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
+    "homepage": "https://www.sandbox.io/",
+    "sources": "https://github.com/sandbox-mc/sandbox-qol"
   },
 
   "license": "CC0-1.0",
-  "icon": "assets/modid/icon.png",
+  "icon": "assets/sandbox-qol/icon.png",
 
   "environment": "*",
   "entrypoints": {
     "main": [
-      "io.sandbox.rails.Main"
+      "io.sandbox.qol.Main"
     ]
   },
   "mixins": [
@@ -30,9 +31,9 @@
     "fabricloader": ">=0.14",
     "fabric": "*",
     "minecraft": "1.19.x",
-    "java": ">=17"
+    "java": ">=17",
+    "sandbox-lib": "*"
   },
   "suggests": {
-    "another-mod": "*"
   }
 }
