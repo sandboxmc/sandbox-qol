@@ -10,6 +10,7 @@ import io.sandbox.lib.Config;
 import io.sandbox.lib.SandboxLogger;
 import io.sandbox.paths.effects.PathStatusEffect;
 import io.sandbox.qol.configTypes.PathsConfig;
+import io.sandbox.qol.configTypes.PetsConfig;
 import io.sandbox.qol.configTypes.RailsConfig;
 
 public class Main implements ModInitializer {
@@ -18,6 +19,7 @@ public class Main implements ModInitializer {
 
 	private static Config<RailsConfig> railsConfig = new Config<RailsConfig>(RailsConfig.class, BASE_CONFIG_FOLDER + "railsConfig.json");
 	private static Config<PathsConfig> pathsConfig = new Config<PathsConfig>(PathsConfig.class, BASE_CONFIG_FOLDER + "pathsConfig.json");
+	private static Config<PetsConfig> petsConfig = new Config<PetsConfig>(PetsConfig.class, BASE_CONFIG_FOLDER + "petsConfig.json");
 
 	public static final StatusEffect PATH_BOOST_EFFECT = new PathStatusEffect();
 
@@ -31,6 +33,9 @@ public class Main implements ModInitializer {
 			initializePaths();
 			LOGGER.info("Path Boost");
 		}
+		if (getPetsConfig().enabled) {
+			LOGGER.info("Safe Pets");
+		}
 	}
 
 	public static RailsConfig getRailsConfig() {
@@ -39,6 +44,10 @@ public class Main implements ModInitializer {
 
 	public static PathsConfig getPathsConfig() {
 		return pathsConfig.getConfig();
+	}
+
+	public static PetsConfig getPetsConfig() {
+		return petsConfig.getConfig();
 	}
 
 	public static void initializePaths() {
