@@ -25,6 +25,7 @@
   },
   "mixins": [
     "paths.mixins.json",
+    "pets.mixins.json",
     "rails.mixins.json"
   ],
 
