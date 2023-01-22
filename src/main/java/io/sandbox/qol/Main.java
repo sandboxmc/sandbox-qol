@@ -4,8 +4,9 @@ import net.fabricmc.api.ModInitializer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.attribute.EntityAttributeModifier.Operation;
 import net.minecraft.entity.effect.StatusEffect;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.registry.Registry;
 import io.sandbox.lib.Config;
 import io.sandbox.lib.SandboxLogger;
 import io.sandbox.paths.effects.PathStatusEffect;
@@ -51,6 +52,6 @@ public class Main implements ModInitializer {
 	}
 
 	public static void initializePaths() {
-		Registry.register(Registry.STATUS_EFFECT, new Identifier("sandbox", "path_boost"), PATH_BOOST_EFFECT.addAttributeModifier(EntityAttributes.GENERIC_MOVEMENT_SPEED, "16976b60-675e-11ec-90d6-0242ac120003", 0.20000000298023224D, Operation.MULTIPLY_TOTAL));
+		Registry.register(Registries.STATUS_EFFECT, new Identifier("sandbox", "path_boost"), PATH_BOOST_EFFECT.addAttributeModifier(EntityAttributes.GENERIC_MOVEMENT_SPEED, "16976b60-675e-11ec-90d6-0242ac120003", 0.20000000298023224D, Operation.MULTIPLY_TOTAL));
 	}
 }
