@@ -1,5 +1,5 @@
 plugins {
-	id 'fabric-loom' version '0.12-SNAPSHOT' // FABRIC UPGRADE REFERENCE https://fabricmc.net/develop/
+	id 'fabric-loom' version '1.0-SNAPSHOT' // FABRIC UPGRADE REFERENCE https://fabricmc.net/develop/
 	id 'maven-publish'
 }
 
@@ -30,7 +30,7 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-	modImplementation "io.sandbox.lib:sandbox-lib-1.19.2+2022-09-27r9"
+	modImplementation "io.sandbox.lib:sandbox-lib-1.19.3+2023-01-15r1"
 
 	// PSA: Some older mods, compiled on Loom 0.2.1, might have outdated Maven POMs.
 	// You may need to force-disable transitiveness on them.
