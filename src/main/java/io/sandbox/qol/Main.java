@@ -10,8 +10,10 @@ import net.minecraft.util.Identifier;
 import io.sandbox.lib.Config;
 import io.sandbox.lib.SandboxLogger;
 import io.sandbox.paths.effects.PathStatusEffect;
+import io.sandbox.potions.Potions;
 import io.sandbox.qol.configTypes.PathsConfig;
 import io.sandbox.qol.configTypes.PetsConfig;
+import io.sandbox.qol.configTypes.PotionsConfig;
 import io.sandbox.qol.configTypes.RailsConfig;
 
 public class Main implements ModInitializer {
@@ -21,6 +23,7 @@ public class Main implements ModInitializer {
 	private static Config<RailsConfig> railsConfig = new Config<RailsConfig>(RailsConfig.class, BASE_CONFIG_FOLDER + "railsConfig.json");
 	private static Config<PathsConfig> pathsConfig = new Config<PathsConfig>(PathsConfig.class, BASE_CONFIG_FOLDER + "pathsConfig.json");
 	private static Config<PetsConfig> petsConfig = new Config<PetsConfig>(PetsConfig.class, BASE_CONFIG_FOLDER + "petsConfig.json");
+	private static Config<PotionsConfig> potionsConfig = new Config<PotionsConfig>(PotionsConfig.class, BASE_CONFIG_FOLDER + "potionsConfig.json");
 
 	public static final StatusEffect PATH_BOOST_EFFECT = new PathStatusEffect();
 
@@ -37,6 +40,10 @@ public class Main implements ModInitializer {
 		if (getPetsConfig().enabled) {
 			LOGGER.info("Safe Pets");
 		}
+		if (getPotionsConfig().enabled) {
+			Potions.init();
+			LOGGER.info("Stackable Potions");
+		}
 	}
 
 	public static RailsConfig getRailsConfig() {
@@ -49,6 +56,10 @@ public class Main implements ModInitializer {
 
 	public static PetsConfig getPetsConfig() {
 		return petsConfig.getConfig();
+	}
+
+	public static PotionsConfig getPotionsConfig() {
+		return potionsConfig.getConfig();
 	}
 
 	public static void initializePaths() {

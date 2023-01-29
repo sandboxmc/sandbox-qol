@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "io.sandbox.potions.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "BrewingStandScreenHandlerMixin",
+    "ItemMixin",
+    "PotionItemMixin",
+    "ThrowablePotionItemMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
